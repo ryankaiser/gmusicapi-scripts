@@ -11,6 +11,7 @@ Usage:
 
 Options:
   -h, --help                            Display help message.
+  -c CRED, --cred CRED                  Specify oauth credential file name to use/create. [Default: oauth]
   -u USERNAME, --user USERNAME          Your Google username or e-mail address.
   -p PASSWORD, --pass PASSWORD          Your Google or app-specific password.
   -l, --log                             Enable gmusicapi logging.
@@ -35,7 +36,7 @@ import logging
 import sys
 
 from docopt import docopt
-
+from gmusicapi_wrapper import MusicManagerWrapper
 from gmusicapi_wrapper import MobileClientWrapper
 
 QUIET = 25
@@ -49,44 +50,49 @@ encoding = sys.getfilesystemencoding()
 
 
 def main():
-	sys.argv = [arg if isinstance(arg, unicode) else arg.decode(encoding) for arg in sys.argv]
-	cli = dict((key.lstrip("-<").rstrip(">"), value) for key, value in docopt(__doc__).items())
+        sys.argv = [arg if isinstance(arg, unicode) else arg.decode(encoding) for arg in sys.argv]
+        cli = dict((key.lstrip("-<").rstrip(">"), value) for key, value in docopt(__doc__).items())
 
-	if cli['quiet']:
-		logger.setLevel(QUIET)
-	else:
-		logger.setLevel(logging.INFO)
+        if cli['quiet']:
+                logger.setLevel(QUIET)
+        else:
+                logger.setLevel(logging.INFO)
 
-	mcw = MobileClientWrapper()
-	mcw.login(cli['user'], cli['pass'])
+        mw = None
+        if not cli['user'] and not cli['pass']:
+              mw = MusicManagerWrapper(log=cli['log'])
+              mw.login(oauth_filename=cli['cred'])
+        else:
+              mw = MobileClientWrapper()
+              mw.login(cli['user'], cli['pass'])
 
-	include_filters = [tuple(filt.split(':', 1)) for filt in cli['include-filter']]
-	exclude_filters = [tuple(filt.split(':', 1)) for filt in cli['exclude-filter']]
+        include_filters = [tuple(filt.split(':', 1)) for filt in cli['include-filter']]
+        exclude_filters = [tuple(filt.split(':', 1)) for filt in cli['exclude-filter']]
 
-	logger.info("Scanning for songs...\n")
-	search_results, _ = mcw.get_google_songs(include_filters, exclude_filters, cli['include-all'], cli['exclude-all'])
-	search_results.sort(key=lambda song: (song.get('artist'), song.get('album'), song.get('title')))
+        logger.info("Scanning for songs...\n")
+        search_results, _ = mw.get_google_songs(include_filters + exclude_filters, cli['include-all'] + cli['exclude-all'])
+        search_results.sort(key=lambda song: (song.get('artist'), song.get('album'), song.get('title')))
 
-	if search_results:
-		confirm = cli['yes'] or cli['quiet']
-		logger.info("")
+        if search_results:
+                confirm = cli['yes'] or cli['quiet']
+                logger.info("")
 
-		if confirm or raw_input("Display {} results? (y/n) ".format(len(search_results))) in ("y", "Y"):
-			logger.log(QUIET, "")
+                if confirm or raw_input("Display {} results? (y/n) ".format(len(search_results))) in ("y", "Y"):
+                        logger.log(QUIET, "")
 
-			for song in search_results:
-				title = song.get('title', "<empty>")
-				artist = song.get('artist', "<empty>")
-				album = song.get('album', "<empty>")
-				song_id = song['id']
+                        for song in search_results:
+                                title = song.get('title', "<empty>")
+                                artist = song.get('artist', "<empty>")
+                                album = song.get('album', "<empty>")
+                                song_id = song['id']
 
-				logger.log(QUIET, "{0} -- {1} -- {2} ({3})".format(title, artist, album, song_id))
-	else:
-		logger.info("\nNo songs found matching query")
+                                logger.log(QUIET, "{0} -- {1} -- {2} ({3})".format(title, artist, album, song_id))
+        else:
+                logger.info("\nNo songs found matching query")
 
-	mcw.logout()
-	logger.info("\nAll done!")
+        mw.logout()
+        logger.info("\nAll done!")
 
 
 if __name__ == '__main__':
-	main()
+        main()
