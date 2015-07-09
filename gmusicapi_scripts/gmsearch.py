@@ -65,7 +65,7 @@ def main():
 
 	logger.info("Scanning for songs...\n")
 	search_results, _ = mcw.get_google_songs(include_filters, exclude_filters, cli['include-all'], cli['exclude-all'])
-	search_results.sort(key=lambda song: (song.get('artist'), song.get('album'), song.get('trackNumber')))
+	search_results.sort(key=lambda song: (song.get('artist'), song.get('album'), song.get('title')))
 
 	if search_results:
 		confirm = cli['yes'] or cli['quiet']
